@@ -583,11 +583,8 @@ with open(CIRCUIT_FILENAME, 'bw') as f:
             for eqi, scalar in col:
                 f.write(struct.pack(data_format, eqi))
                 f.write(encode_scalar_bin(scalar))
-<<<<<<< HEAD
         for i in range(mul_count, nextmulcount):
             f.write(struct.pack(data_format, 0))
-=======
->>>>>>> parent of 1eb2fc7... hack to get merkle circuits to compile and parse correctly
     for c in C:
         f.write(encode_scalar_bin(MODULUS - c % MODULUS))
 
