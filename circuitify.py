@@ -5,9 +5,10 @@ import struct
 import sys
 import time
 import random
+#from sympy import Matrix, Rational, mod_inverse, pprint
 
-SECRET_FILENAME="secret.dat"
-CIRCUIT_FILENAME="circuit.dat"
+SECRET_FILENAME="/CircuitOutput/circuit.assn"
+CIRCUIT_FILENAME="/CircuitOutput/circuit.circ"
 
 MODULUS = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 HALFMODULUS = ((MODULUS + 1)/2)
@@ -360,20 +361,30 @@ def pivot_variable(eqs, vnam, eliminate=False):
     cc = 0
     low = None
     leq = None
+    arr = []
     for idx, eq in enumerate(eqs):
         if vnam in eq.var:
+            arr.append(idx)
             cc += 1
             if low is None or c > len(eq.var):
                 low = idx
                 c = len(eq.var)
                 leq = eq * modinv(eq.var[vnam])
     if cc > 1:
-        for idx, eq in enumerate(eqs):
+        for idx in arr:
+            eq = eqs[idx]
             if idx != low and vnam in eq.var:
                 eqs[idx] = eq - leq * eq.var[vnam]
     if eliminate and cc > 0:
         del eqs[low]
 
+def get_format(n_elems):
+    if n_elems <= 255:
+        return '<B'
+    elif n_elems <= (32767 * 2 + 1):
+        return '<H'
+    else:
+        return '<I'
 
 def encode_andytoshi_format():
     global eqs
@@ -443,6 +454,40 @@ for tnum in range(0, temp_count):
         tock = now
         print("[%f] Eliminated %i/%i" % (now - start, tnum, temp_count))
 
+
+#def mod(x):
+#    numer, denom = x.as_numer_denom()
+#    return numer*mod_inverse(denom,MODULUS) % MODULUS
+
+#for x in eqs:
+#    print(x.var)
+#print(mul_data)
+# matrix of left, right, output value constraints in that order
+
+#mat = []
+#Q = len(mul_data)
+#for x in eqs:
+#    row = [0 for i in range(3*Q)]
+#    for ((ty, idx), val) in x.var.items():
+#        index = idx
+#        if ty == 'L':
+#            index += 0
+#        elif ty == 'R':
+#            index += Q
+#        elif ty == 'O':
+#            index += 2*Q
+#        row[index] = val
+#    mat.append(row)
+
+#print(mat)
+#B = Matrix(mat)
+#B = Matrix([[4,3,1,3],[2,4,1,3]])
+#pprint(B)
+#B_rref = B.rref(iszerofunc=lambda x: x % MODULUS == 0)[0].applyfunc(lambda x: mod(x))
+#pprint(B_rref)
+
+#assert(False)
+
 eqs_cost = sum(eq.cost for eq in eqs)
 print("[%f] %i multiplications, %i constraints, %i cost" % (time.clock() - start, mul_count, len(eqs), eqs_cost))
 print("[%f] Reducing..." % (time.clock() - start))
@@ -497,7 +542,6 @@ print()
 
 print(encode_andytoshi_format())
 
-
 WL = [ [] for i in mul_data ]
 WR = [ [] for i in mul_data ]
 WO = [ [] for i in mul_data ]
@@ -530,19 +574,19 @@ with open(CIRCUIT_FILENAME, 'bw') as f:
     nextmulcount = 1 << (mul_count - 1).bit_length()
     # 2 bytes version (1), 2 bytes flags (0), 4 bytes n_commits (0), 8 bytes n_gates, 8 bytes n_bits, 8 bytes n_constraints
     f.write(struct.pack('<LLQQQ', 1, 0, nextmulcount, bit_count, len(eqs)))
+    data_format = get_format(len(eqs))
     for W in [WL, WR, WO]:
         print ("%s" % W)
+        
         for col in W:
-            f.write(struct.pack('<H', len(col)))
+            f.write(struct.pack(data_format, len(col)))
             for eqi, scalar in col:
-                f.write(struct.pack('<H', eqi))
+                f.write(struct.pack(data_format, eqi))
                 f.write(encode_scalar_bin(scalar))
         for i in range(mul_count, nextmulcount):
-            f.write(struct.pack('<H', 0))
+            f.write(struct.pack(data_format, 0))
     for c in C:
         f.write(encode_scalar_bin(MODULUS - c % MODULUS))
 
-
 print("Wrote circuit to « %s »" % CIRCUIT_FILENAME)
 print("Wrote secret data to « %s »" % SECRET_FILENAME)
-

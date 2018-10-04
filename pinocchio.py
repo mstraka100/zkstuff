@@ -7,8 +7,25 @@ OUTPUT = re.compile("output ([0-9]+)")
 CMD = re.compile("([a-z0-9-]+) in ([0-9]+) <([0-9 ]+)> out ([0-9]+) <([0-9 ]+)>")
 MUL_CONST = re.compile("const-mul-([0-9a-f]+)")
 MUL_NEG_CONST = re.compile("const-mul-neg-([0-9a-f]+)")
+SKIP = re.compile("total | input")
+
+assnfile = open("PourCircuit_SampleTest1_optimized.in")#open("./RSA_KeyKnowledge_Sample_Run1.in")
+
+inputs = {}
+for line in assnfile:
+    vals = line.split(" ")
+    inputs[int(vals[0])] = int(vals[1][:-1], 16)
+
+for x in inputs.items():
+    print("v%i = #%i" % (x[0], x[1]))
 
 for line in sys.stdin:
+    if "total" in line:
+        continue
+    if "input" in line:
+        continue
+    if "assert" in line:
+        continue
     line = line.strip()
     sp = OUTPUT.fullmatch(line)
     if sp:
@@ -38,9 +55,12 @@ for line in sys.stdin:
         print("v%i = v%i ^ v%i" % (outs[0], ins[0], ins[1]))
         continue
     if cmd == 'add':
-        assert(len(ins) == 2)
+        assert(len(ins) >= 2)
         assert(len(outs) == 1)
-        print("v%i = v%i + v%i" % (outs[0], ins[0], ins[1]))
+        string = "v%i = v%i" % (outs[0], ins[0])
+        for i in range(len(ins)-1):
+            string += " + v%i" % ins[i+1]
+        print(string)
         continue
     if cmd == 'mul':
         assert(len(ins) == 2)
